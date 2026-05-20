@@ -66,7 +66,7 @@ curl -sS \
   "${headers[@]}" \
   -o "$body_file" \
   -w '%{http_code}' \
-  "${SCRIBO_BASE_URL}/v1/invoices/${invoice_id}/download" \
+  "${SCRIBO_BASE_URL}/api/v1/invoices/${invoice_id}/download" \
   >"$status_file"
 curl_exit=$?
 set -e

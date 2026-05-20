@@ -52,7 +52,7 @@ Or add to `claude_desktop_config.json` manually:
 }
 ```
 
-Both paths talk to the same `/v1/*` API.
+Both paths talk to the same `/api/v1/*` API.
 
 ## Configuration
 
@@ -74,10 +74,10 @@ Expect a JSON array of supported country codes.
 ## What's in this skill
 
 - `SKILL.md` — the prompt fragment Claude loads when an invoice request is detected
-- `scripts/create_invoice.sh` — POST `/v1/invoices`, auto-mints `Idempotency-Key`
-- `scripts/get_invoice.sh` — GET `/v1/invoices/:id`
-- `scripts/download_invoice.sh` — GET `/v1/invoices/:id/download`
-- `scripts/list_jurisdictions.sh` — GET `/v1/jurisdictions`
+- `scripts/create_invoice.sh` — POST `/api/v1/invoices`, auto-mints `Idempotency-Key`
+- `scripts/get_invoice.sh` — GET `/api/v1/invoices/:id`
+- `scripts/download_invoice.sh` — GET `/api/v1/invoices/:id/download`
+- `scripts/list_jurisdictions.sh` — GET `/api/v1/jurisdictions`
 - `references/tax-codes.md` — EN 16931 S/Z/E/AE/K/G/O picker guidance
 - `references/jurisdictions.md` — Format priority chain + per-country defaults
 - `references/troubleshooting.md` — Rate limits, Turnstile, idempotency, validator errors

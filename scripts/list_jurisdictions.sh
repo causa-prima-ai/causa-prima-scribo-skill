@@ -14,4 +14,4 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 scribo_require curl jq
 
-scribo_request GET /v1/jurisdictions
+scribo_request GET /api/v1/jurisdictions

@@ -20,4 +20,4 @@ if [ $# -lt 1 ] || [ -z "$1" ]; then
 fi
 
 invoice_id="$1"
-scribo_request GET "/v1/invoices/$invoice_id"
+scribo_request GET "/api/v1/invoices/$invoice_id"

@@ -42,7 +42,7 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 
 ## Tools
 
-### `scripts/create_invoice.sh` — POST `/v1/invoices`
+### `scripts/create_invoice.sh` — POST `/api/v1/invoices`
 
 Reads a JSON payload on stdin (or via `--from FILE`). Example:
 
@@ -85,15 +85,15 @@ Returns `{ invoice_id, document_id, format, download_url, download_url_expires_a
 
 Format is picked from the priority chain (UI override → Leitweg-ID → recipient country → recipient tax-ID prefix → sender country → sender tax-ID prefix). See `references/jurisdictions.md` for the full table.
 
-### `scripts/get_invoice.sh INVOICE_ID` — GET `/v1/invoices/:id`
+### `scripts/get_invoice.sh INVOICE_ID` — GET `/api/v1/invoices/:id`
 
 Fetch metadata + a fresh signed download URL for a previously generated invoice. Tenant-scoped (the caller's session must own it).
 
-### `scripts/download_invoice.sh INVOICE_ID [-o FILE]` — GET `/v1/invoices/:id/download`
+### `scripts/download_invoice.sh INVOICE_ID [-o FILE]` — GET `/api/v1/invoices/:id/download`
 
 Streams the PDF bytes to `-o FILE` (default `invoice-<id>.pdf`).
 
-### `scripts/list_jurisdictions.sh` — GET `/v1/jurisdictions`
+### `scripts/list_jurisdictions.sh` — GET `/api/v1/jurisdictions`
 
 Returns `[{ jurisdiction, formats, default_format }]`. Useful to confirm a country is supported before collecting recipient data.
 

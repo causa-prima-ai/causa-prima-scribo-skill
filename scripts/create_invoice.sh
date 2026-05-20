@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate a Scribo invoice via POST /v1/invoices.
+# Generate a Scribo invoice via POST /api/v1/invoices.
 #
 # Usage:
 #   create_invoice.sh [--from FILE] [--idempotency-key KEY]
@@ -68,7 +68,7 @@ if [ -z "$idempotency_key" ]; then
   idempotency_key="$(jq -cS . <"$payload_file" | scribo_sha256)"
 fi
 
-scribo_request POST /v1/invoices \
+scribo_request POST /api/v1/invoices \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $idempotency_key" \
   --data-binary "@$payload_file"
