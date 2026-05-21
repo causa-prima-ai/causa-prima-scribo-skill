@@ -33,9 +33,9 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
    - **Sender address** — street (`address_line1`), `postcode`, `city`, `country_code` (ISO 3166 alpha-2).
    - **Sender tax / VAT ID + contact email** — tax ID with country prefix (e.g. `DE123456789`). The email doubles as the user's login for return visits.
    - **Recipient name** — legal entity name.
-   - **Recipient address** — street, postcode, city, country code. **Required** — Scribo refuses to draft without it. Add `leitweg_id` if it's a German federal B2G recipient (forces XRechnung CII). Recipient `tax_id` is optional in general but required for intra-EU reverse charge (`AE`).
-   - **Line items** — description, quantity, unit price, tax rate (percent), tax category code. Optional line-level `discount` (`{ type: 'percent' | 'amount', value, reason? }`).
-   - **Currency** — ISO 4217 (e.g. `EUR`, `USD`).
+   - **Recipient address** — street, postcode, city, country code. Add `leitweg_id` if it's a German federal B2G recipient (forces XRechnung CII).
+   - **Recipient email** — `recipient.contact_email`. **Required** — Scribo refuses to draft without it. This is the accounts-payable / billing email; the address Scribo delivers the invoice to and where the recipient's transparency / opt-out link is sent. Recipient `tax_id` is optional in general but required for intra-EU reverse charge (`AE`).
+   - **Line items + currency** — per line: description, quantity, unit price, tax rate (percent), tax category code. Optional line-level `discount` (`{ type: 'percent' | 'amount', value, reason? }`). Currency is ISO 4217 (e.g. `EUR`, `USD`).
 
    *Optional extras:* `jurisdiction` override, `format_override`, `notes` (≤ 1000 chars), `idempotency_key` (if not supplied, the script auto-mints one from a SHA-256 of the payload so accidental retries don't double-bill).
 2. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
