@@ -28,13 +28,16 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 
 ## Workflow
 
-1. **Collect the six required fields** from the user in a brief conversational pass:
-   - **Sender** — legal name, full address, country code (ISO 3166 alpha-2), tax/VAT ID (with country prefix, e.g. `DE123456789`), contact email. The email is the user's login for return visits.
-   - **Recipient** — legal name, address, country code; tax/VAT ID optional; `leitweg_id` if it's a German federal B2G recipient (forces XRechnung CII).
+1. **Collect the seven required fields** from the user in a brief conversational pass:
+   - **Sender business name** — legal entity name.
+   - **Sender address** — street (`address_line1`), `postcode`, `city`, `country_code` (ISO 3166 alpha-2).
+   - **Sender tax / VAT ID + contact email** — tax ID with country prefix (e.g. `DE123456789`). The email doubles as the user's login for return visits.
+   - **Recipient name** — legal entity name.
+   - **Recipient address** — street, postcode, city, country code. **Required** — Scribo refuses to draft without it. Add `leitweg_id` if it's a German federal B2G recipient (forces XRechnung CII). Recipient `tax_id` is optional in general but required for intra-EU reverse charge (`AE`).
    - **Line items** — description, quantity, unit price, tax rate (percent), tax category code. Optional line-level `discount` (`{ type: 'percent' | 'amount', value, reason? }`).
    - **Currency** — ISO 4217 (e.g. `EUR`, `USD`).
-   - *Optional* — `jurisdiction` override, `format_override`, `notes` (≤ 1000 chars).
-   - *Optional* — `idempotency_key`. If not supplied, the script auto-mints one from a SHA-256 of the payload so accidental retries don't double-bill.
+
+   *Optional extras:* `jurisdiction` override, `format_override`, `notes` (≤ 1000 chars), `idempotency_key` (if not supplied, the script auto-mints one from a SHA-256 of the payload so accidental retries don't double-bill).
 2. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
 3. **Build the JSON payload** and invoke `scripts/create_invoice.sh` (passes payload on stdin).
 4. **Hand the user the result** — `download_url` (signed, 15-minute TTL), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later.
