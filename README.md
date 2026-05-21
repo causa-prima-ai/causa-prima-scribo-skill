@@ -31,22 +31,16 @@ git clone https://github.com/causaprimaai/scribo-skill ~/.claude/skills/scribo
 git clone https://github.com/causaprimaai/scribo-skill ~/.codex/skills/scribo
 ```
 
-### Claude Desktop (MCP alternative)
+### Claude Desktop, Cursor, Cline, ChatGPT App (MCP alternative)
 
-If you prefer the MCP integration over HTTP scripts, install the companion MCP server instead:
-
-```sh
-npx @smithery/cli install @causaprima/scribo-mcp --client claude-desktop
-```
-
-Or add to `claude_desktop_config.json` manually:
+If your client speaks MCP, point it at the hosted Scribo MCP endpoint instead of installing this skill. Add to `claude_desktop_config.json` (or the equivalent config file for your client):
 
 ```json
 {
   "mcpServers": {
     "scribo": {
-      "command": "npx",
-      "args": ["-y", "@causaprima/scribo-mcp"]
+      "transport": "http",
+      "url": "https://scribo.causaprima.ai/mcp"
     }
   }
 }
