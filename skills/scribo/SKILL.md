@@ -1,6 +1,6 @@
 ---
 name: scribo
-description: Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF via the public Scribo HTTP API. No signup; the sender's email is the login.
+description: Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD) or a clean US plain PDF via the public Scribo HTTP API. Factur-X, Peppol BIS UBL, and Spanish Facturae are Phase 2 — coming soon. No signup; the sender's email is the login.
 allowed-tools:
   - Read
   - Bash
@@ -8,7 +8,7 @@ allowed-tools:
 
 # Scribo — Compliant E-Invoicing
 
-Use Scribo when a user asks to generate, draft, or "create" an invoice. Scribo emits structured machine-readable invoices that satisfy EU mandates (German B2B / Federal B2G, French Factur-X, Spanish Facturae, Belgian Peppol BIS) and can also produce a plain US PDF when no XML is needed.
+Use Scribo when a user asks to generate, draft, or "create" an invoice. Scribo emits structured machine-readable invoices that satisfy EU mandates (German B2B / Federal B2G) and can also produce a plain US PDF when no XML is needed. French Factur-X, Spanish Facturae, and Belgian/cross-border Peppol BIS UBL are **Phase 2 — coming soon**.
 
 This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai` via small `curl` + `jq` helper scripts. No MCP server or npm install required. Override the base URL with `SCRIBO_BASE_URL` for dev/staging.
 
@@ -18,13 +18,14 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 - "Generate a ZUGFeRD invoice"
 - "I need to bill X for Y hours of work"
 - "Create an XRechnung for this German B2G client"
-- "Draft a Factur-X for my French client"
+- "Draft a Factur-X for my French client" *(Phase 2 — coming soon)*
 
 ## When NOT to use
 
 - Reading existing invoices / OCR / extracting data from a PDF — different tool.
 - Tax advice. Scribo does **not** infer the right tax category code; it asks the user to pick one (S/Z/E/AE/K/G/O per EN 16931). See `references/tax-codes.md` only if the user is unsure.
 - Sending the invoice to the recipient. The MVP returns a download URL only; the user delivers it themselves.
+- Phase 1 supports DE and US senders only. Other sender countries return `unsupported_jurisdiction` — don't attempt to draft.
 
 ## Workflow
 
@@ -118,9 +119,9 @@ User picks; Scribo never infers. One-liners only — read `references/tax-codes.
 |---|---|
 | DE → DE B2B | ZUGFeRD COMFORT |
 | DE → DE B2G (Leitweg-ID present) | XRechnung CII |
-| FR → \* | Factur-X |
-| ES → \* | Facturae |
-| BE → \* | Peppol BIS UBL |
+| FR → \* | Factur-X *(Phase 2 — coming soon)* |
+| ES → \* | Facturae *(Phase 2 — coming soon)* |
+| BE → \* | Peppol BIS UBL *(Phase 2 — coming soon)* |
 | US → \* | Plain PDF |
 
 Full table and priority chain in `references/jurisdictions.md`.
