@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "scribo-skill",
+  "version": "1.0.0",
+  "description": "Generate EN 16931-compliant e-invoices via the public Scribo HTTP API. Plain bash + curl + jq helpers, no MCP server or npm install required.",
+  "author": {
+    "name": "Causa Prima",
+    "url": "https://causaprima.ai"
+  },
+  "homepage": "https://scribo.causaprima.ai",
+  "repository": "https://github.com/causa-prima-ai/scribo-skill",
+  "license": "MIT",
+  "keywords": ["invoice", "e-invoicing", "en16931", "xrechnung", "zugferd", "scribo"]
+}

@@ -11,29 +11,67 @@ This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` di
 
 ## Install
 
-### Claude Code (project)
+### Claude Code (recommended)
 
 ```sh
-git clone https://github.com/causaprimaai/scribo-skill .claude/skills/scribo
+/plugin marketplace add causa-prima-ai/scribo-skill
+/plugin install scribo-skill@scribo-skill
+# or, when the name is unambiguous across your installed marketplaces:
+/plugin install scribo-skill
 ```
 
-Claude Code auto-discovers any directory under `.claude/skills/` whose `SKILL.md` has frontmatter. Restart your session and ask for an invoice.
+The skill activates as `/scribo-skill:scribo` and triggers automatically when you ask Claude to draft or generate an invoice.
 
-### Claude Code (user-global)
+### Claude Desktop / claude.ai (coming soon)
+
+We're submitting `scribo-skill` to Anthropic's hosted plugin registry. Once approved, install with one click from the in-app plugin browser.
+
+### OpenAI Codex CLI
+
+Codex CLI reads skills from `~/.codex/skills/`, not from the Claude plugin registry. Clone and copy the inner skill directory:
 
 ```sh
-git clone https://github.com/causaprimaai/scribo-skill ~/.claude/skills/scribo
+git clone https://github.com/causa-prima-ai/scribo-skill /tmp/scribo-skill
+cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo
 ```
 
-### Codex CLI
+## Configuration
 
-```sh
-git clone https://github.com/causaprimaai/scribo-skill ~/.codex/skills/scribo
+| Env var | Default | Purpose |
+|---|---|---|
+| `SCRIBO_BASE_URL` | `https://scribo.causaprima.ai` | Override for staging or self-hosted |
+| `SCRIBO_API_KEY` | _(unset)_ | Forward-compat partner key; not required at v1 |
+
+## Verify install
+
+After `/plugin install scribo-skill`, ask Claude in any session:
+
+> Generate a test invoice for ACME GmbH (DE) billing Beispiel GmbH (DE) for 3 hours of consulting at €120/h, 19% VAT.
+
+Claude should walk you through the missing fields and call `create_invoice.sh`. For a direct check, the underlying helper script is at `~/.claude/plugins/scribo-skill/skills/scribo/scripts/list_jurisdictions.sh`.
+
+## Repo layout
+
+```
+.claude-plugin/
+  plugin.json                     # plugin manifest (name, version, description, …)
+skills/scribo/
+  SKILL.md                        # prompt fragment Claude loads on invoice intent
+  scripts/
+    _common.sh                    # shared bash helpers (auto-mint idempotency key)
+    create_invoice.sh             # POST /api/v1/invoices
+    get_invoice.sh                # GET  /api/v1/invoices/:id
+    download_invoice.sh           # GET  /api/v1/invoices/:id/download
+    list_jurisdictions.sh         # GET  /api/v1/jurisdictions
+  references/
+    jurisdictions.md              # format priority chain
+    tax-codes.md                  # EN 16931 S/Z/E/AE/K/G/O picker guidance
+    troubleshooting.md            # rate limits, Turnstile, idempotency, validator errors
 ```
 
-### Claude Desktop, Cursor, Cline, ChatGPT App (MCP alternative)
+## Alternative: hosted MCP endpoint
 
-If your client speaks MCP, point it at the hosted Scribo MCP endpoint instead of installing this skill. Add to `claude_desktop_config.json` (or the equivalent config file for your client):
+For clients that speak MCP natively (Claude Desktop, Cursor, Cline, ChatGPT App), point at the hosted Scribo MCP server instead of installing this skill:
 
 ```json
 {
@@ -47,34 +85,6 @@ If your client speaks MCP, point it at the hosted Scribo MCP endpoint instead of
 ```
 
 Both paths talk to the same `/api/v1/*` API.
-
-## Configuration
-
-| Env var | Default | Purpose |
-|---|---|---|
-| `SCRIBO_BASE_URL` | `https://scribo.causaprima.ai` | Override for staging or self-hosted |
-| `SCRIBO_API_KEY` | _(unset)_ | Forward-compat partner key; not required at v1 |
-
-## Verify install
-
-From any directory:
-
-```sh
-~/.claude/skills/scribo/scripts/list_jurisdictions.sh | jq '.[].jurisdiction'
-```
-
-Expect a JSON array of supported country codes.
-
-## What's in this skill
-
-- `SKILL.md` — the prompt fragment Claude loads when an invoice request is detected
-- `scripts/create_invoice.sh` — POST `/api/v1/invoices`, auto-mints `Idempotency-Key`
-- `scripts/get_invoice.sh` — GET `/api/v1/invoices/:id`
-- `scripts/download_invoice.sh` — GET `/api/v1/invoices/:id/download`
-- `scripts/list_jurisdictions.sh` — GET `/api/v1/jurisdictions`
-- `references/tax-codes.md` — EN 16931 S/Z/E/AE/K/G/O picker guidance
-- `references/jurisdictions.md` — Format priority chain + per-country defaults
-- `references/troubleshooting.md` — Rate limits, Turnstile, idempotency, validator errors
 
 ## License
 
