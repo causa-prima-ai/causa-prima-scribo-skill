@@ -20,11 +20,11 @@ If none of these resolve to a supported jurisdiction, Scribo returns `400 invali
 
 | Country | Default format | Supported alternatives |
 |---|---|---|
-| **DE** (Germany) | `zugferd_comfort` (B2B) / `xrechnung_cii` (B2G, when `leitweg_id` set) | `zugferd_basic`, `xrechnung_ubl`, `peppol_bis_ubl` |
-| **FR** (France) | `factur_x` | `peppol_bis_ubl` |
-| **ES** (Spain) | `facturae` | `peppol_bis_ubl` |
-| **BE** (Belgium) | `peppol_bis_ubl` | — |
-| **NL, LU, AT, IT** | `peppol_bis_ubl` | — (IT: PDF only at MVP; SDI submission deferred) |
+| **DE** (Germany) | `zugferd_comfort` (B2B) / `xrechnung_cii` (B2G, when `leitweg_id` set) | `zugferd_basic`, `xrechnung_ubl`, `peppol_bis_ubl` *(Phase 2)* |
+| **FR** (France) | `factur_x` *(Phase 2 — coming soon)* | `peppol_bis_ubl` *(Phase 2)* |
+| **ES** (Spain) | `facturae` *(Phase 2 — coming soon)* | `peppol_bis_ubl` *(Phase 2)* |
+| **BE** (Belgium) | `peppol_bis_ubl` *(Phase 2 — coming soon)* | — |
+| **NL, LU, AT, IT** | `peppol_bis_ubl` *(Phase 2 — coming soon)* | — (IT: PDF only at MVP; SDI submission deferred) |
 | **US** | `plain_pdf` | — |
 | **MX, BR, IT** | `plain_pdf` (with submission banner) | — |
 
@@ -38,9 +38,9 @@ Call `scripts/list_jurisdictions.sh` for the live list — the table above is a 
 | `zugferd_basic` | Subset of EN 16931 CII in PDF/A-3 | German B2B where recipient accepts the smaller profile |
 | `xrechnung_cii` | German XRechnung in CII syntax | German B2G (federal) — **required** when `leitweg_id` present |
 | `xrechnung_ubl` | German XRechnung in UBL syntax | German B2G where recipient prefers UBL |
-| `peppol_bis_ubl` | Peppol BIS Billing 3.0 (UBL) | Cross-border EU B2B/B2G via the Peppol network |
-| `factur_x` | French Factur-X (= ZUGFeRD profile, French naming) | French B2B/B2G |
-| `facturae` | Spanish Facturae 3.2.2 | Spanish B2B/B2G |
+| `peppol_bis_ubl` | Peppol BIS Billing 3.0 (UBL) | Cross-border EU B2B/B2G via the Peppol network — **Phase 2, coming soon** |
+| `factur_x` | French Factur-X (= ZUGFeRD profile, French naming) | French B2B/B2G — **Phase 2, coming soon** |
+| `facturae` | Spanish Facturae 3.2.2 | Spanish B2B/B2G — **Phase 2, coming soon** |
 | `plain_pdf` | Non-structured PDF (no embedded XML) | US, or any jurisdiction without a structured mandate |
 
 ## Mandatory fields by format
@@ -48,8 +48,8 @@ Call `scripts/list_jurisdictions.sh` for the live list — the table above is a 
 All formats need everything in the base payload. Format-specific extras:
 
 - **`xrechnung_cii`**: `recipient.leitweg_id` mandatory.
-- **`facturae`**: Sender tax ID must be a Spanish NIF/CIF (e.g. `ES…`). Recipient tax ID strongly recommended.
-- **`zugferd_*`, `factur_x`**: Recipient address must be parseable (street, postcode, city) — Invopop validator rejects PO-box-only addresses.
-- **`peppol_bis_ubl`**: Both sender and recipient must have an electronic-address scheme (typically the VAT ID acts as it).
+- **`facturae`** *(Phase 2 — coming soon)*: Sender tax ID must be a Spanish NIF/CIF (e.g. `ES…`). Recipient tax ID strongly recommended.
+- **`zugferd_*`**, **`factur_x`** *(factur_x: Phase 2 — coming soon)*: Recipient address must be parseable (street, postcode, city) — Invopop validator rejects PO-box-only addresses.
+- **`peppol_bis_ubl`** *(Phase 2 — coming soon)*: Both sender and recipient must have an electronic-address scheme (typically the VAT ID acts as it).
 
 If a mandatory field is missing the response includes `validator_summary.errors` with `{ path, rule, message }`. Surface that to the user and ask for the missing field.
