@@ -79,21 +79,28 @@ Common rules:
 
 | Rule | Trigger | Fix |
 |---|---|---|
+| `BR-E-10` / `GOBL-EU-EN16931-TAX-COMBO-06` | `tax_category_code: "E"` line without a VATEX code | Add `tax_exemption_code` to the line. `VATEX-EU-79-C` for Kleinunternehmer § 19 UStG, `VATEX-EU-132` for Art. 132 (health/education), etc. |
+| `BR-DE-1` / `GOBL-DE-XRECHNUNG-BILL-INVOICE-17` | XRechnung-resolved invoice without `payment_means` | Add `payment_means: { type: "credit_transfer", iban: "DE…" }`. BIC + account_name are optional. |
+| `BR-DE-5` / `BR-DE-6` | XRechnung sender missing `contact_name` / `contact_phone` | Add them to `sender.contact_name` / `sender.contact_phone`. |
+| `BR-DE-14` | XRechnung with all-outside-scope (O) lines | All-O XRechnung is unrepresentable (BR-DE-14 needs BT-119 percent; O has no percent). Switch the lines to `AE` (§ 13b reverse charge) or `G` (free export), or drop the leitweg / xrechnung_* override and let ZUGFeRD carry them. |
 | `BR-CO-09` | Sender VAT ID country prefix doesn't match `sender.country_code` | Correct the prefix or the country code |
 | `BR-CO-27` | Sum of line totals doesn't match `unit_price * quantity - discount` | Recompute the line totals client-side |
-| `BR-AE-01..10` | `AE` (reverse charge) without recipient VAT ID, or other AE constraints | Provide recipient VAT ID; verify both parties are EU-registered |
+| `BR-AE-01..10` | `AE` (reverse charge) without recipient VAT ID, or other AE constraints | Provide recipient VAT ID; verify the supply qualifies (cross-border EU service, or § 13b UStG domestic) |
 | `BR-IC-01..12` | `K` (intra-community) constraints violated | Recipient must be in a different EU member state with valid VAT ID |
+| `BR-O-02` | Outside-scope (O) invoice carrying any VAT identifier | Server-side: Scribo strips all VAT IDs automatically when every line is O. If you see this rule fire, an intermediate party is somehow forwarding stale IDs. |
 | `BR-S-08` | `S` line total tax amount doesn't match the BT-118 grouped tax breakdown | Float precision; the script forwards strings — make sure unit_price is a decimal string |
 
 Surface the `path` and `rule` to the user verbatim. Don't try to rewrite the payload silently — the user needs to know which field they got wrong.
 
 ## `unsupported_jurisdiction` (400)
 
-The country chain didn't resolve to a supported jurisdiction. Call `list_jurisdictions.sh` to confirm what's available and re-ask the user.
+The country chain didn't resolve to a supported jurisdiction. Phase 1 supports **DE and US only**. Call `list_jurisdictions.sh` to confirm the live list and re-ask the user.
 
-## `payload_too_large` (413)
+## Over 500 line items — `invalid_input` (400)
 
-More than 500 line items. Split the invoice.
+Scribo caps `line_items` at 500 entries. Anything more is surfaced as a standard `invalid_input` response with the path `line_items` and the message `"Array must contain at most 500 element(s)"`. Split into multiple smaller invoices.
+
+*(A dedicated `413 payload_too_large` status is reserved for future revisions — today the cap surfaces as `400 invalid_input`.)*
 
 ## Generic 5xx
 

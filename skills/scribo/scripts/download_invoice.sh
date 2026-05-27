@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
-# Download an invoice's PDF bytes.
+# Download an invoice's bytes.
 #
 # Usage:
 #   download_invoice.sh INVOICE_ID [-o FILE]
 #
-# Writes the PDF to FILE (default: invoice-INVOICE_ID.pdf in the current directory)
-# and prints the absolute path of the written file to stdout.
+# What you get depends on the invoice's resolved format:
+#   - ZUGFeRD COMFORT / BASIC -> PDF/A-3 with EN 16931 CII XML embedded
+#     (the legally binding artifact is the PDF; the XML lives inside it)
+#   - XRechnung UBL / CII     -> raw UBL/CII XML (KoSIT / Peppol / federal
+#     procurement consume the XML directly; no PDF is returned)
+#   - plain_pdf               -> bare PDF
+#
+# Writes to FILE (default: invoice-INVOICE_ID.pdf — rename to .xml after
+# download if the invoice is XRechnung) and prints the absolute path of
+# the written file to stdout.
 
 set -euo pipefail
 
