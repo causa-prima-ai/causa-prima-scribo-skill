@@ -27,24 +27,31 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 - Sending the invoice to the recipient. The MVP returns a download URL only; the user delivers it themselves.
 - Phase 1 supports DE and US senders only. Other sender countries return `unsupported_jurisdiction` — don't attempt to draft.
 
+## Phase 1 limits — surface up front
+
+- **Sender jurisdictions**: DE and US only. Other sender countries return `unsupported_jurisdiction`.
+- **DE B2G (XRechnung) is generate-only.** Scribo emits the legally binding XML and a human-readable PDF preview — it does **not** submit to ZRE / OZG-RE / Peppol yet. **Tell the user this before collecting the Leitweg-ID**, so they know they'll deliver the XML themselves (the response includes the upload-portal hint per Leitweg-ID prefix). Direct submission via Peppol is planned for a future release.
+- **Credit notes / corrections** aren't supported — total ≤ 0 is rejected. Use a positive invoice with a line `discount` to apply a rebate.
+
 ## Workflow
 
-1. **Collect the required fields** from the user in a brief conversational pass:
+1. **Detect the invoice type early.** If the user mentions a German public-sector recipient, a Leitweg-ID, or specifically asks for XRechnung, immediately tell them: *"Scribo generates the XRechnung XML (plus a PDF preview) but doesn't submit it for you yet — you'll upload the XML manually to xrechnung.bund.de (federal) or your Land's OZG-RE portal, keyed by the Leitweg-ID. Direct Peppol submission is on the roadmap."* Confirm they're OK with this before proceeding.
+2. **Collect the required fields** from the user in a brief conversational pass:
    - **Sender business name** — legal entity name.
    - **Sender address** — street (`address_line1`), `postcode`, `city`, `country_code` (ISO 3166 alpha-2 — reserved codes like `XX` / `ZZ` are rejected).
    - **Sender tax / VAT ID + contact email** — tax ID with country prefix (e.g. `DE123456788`). The email doubles as the user's login for return visits. **German Kleinunternehmer § 19 UStG** senders don't have a VAT ID — pass the **Steuernummer** as `sender.tax_registration_id` (e.g. `9999/999/9999`) instead so the EN 16931 BR-CO-26 constraint is still satisfied. Both fields can also be supplied side-by-side when both are issued (BT-31 + BT-32).
    - **Recipient name** — legal entity name.
-   - **Recipient address** — street, postcode, city, country code. Add `leitweg_id` if it's a German federal B2G recipient — that field alone **auto-selects XRechnung UBL** (broadest Peppol AccessPoint compatibility; force `xrechnung_cii` via `format_override` only if a portal specifically requires the CII syntax).
+   - **Recipient address** — street, postcode, city, country code. Add `leitweg_id` if it's a German federal B2G recipient — that field alone **auto-selects XRechnung UBL** (broadest Peppol AccessPoint compatibility; force `xrechnung_cii` via `format_override` only if a portal specifically requires the CII syntax). **Reminder**: Scribo generates the XML and a PDF preview but does not submit — the response includes a `submission` hint pointing at the right manual-upload portal.
    - **Recipient email** — `recipient.contact_email`. **Required** — Scribo refuses to draft without it. This is the accounts-payable / billing email. Recipient `tax_id` is optional in general but required for intra-EU reverse charge (`AE`).
    - **Line items + currency** — per line: description, quantity, unit price, tax rate (percent — must be `[0, 100]`; quantity capped at 999,999.999), tax category code. Optional line-level `discount` (`{ type: 'percent' | 'amount', value, reason }`; `reason` is **required** by EN 16931 BR-41). Currency is ISO 4217.
    - **`tax_exemption_code`** (per line) — **REQUIRED when `tax_category_code === "E"`** per EN 16931 BR-E-10. Pass a VATEX code matching the legal basis (`VATEX-EU-79-C` for Kleinunternehmer § 19 UStG, `VATEX-EU-132` for Art. 132 health/education, etc.). **AE / K / G / O auto-emit their well-known VATEX codes server-side** (VATEX-EU-AE / -IC / -G / -O) — only include this for category E unless you want to override a default.
    - **`payment_means`** (top-level) — **REQUIRED for XRechnung** (any invoice with `recipient.leitweg_id`, or an explicit `format_override` of `xrechnung_ubl` / `xrechnung_cii`). Shape: `{ "type": "credit_transfer", "iban": "DE89…", "bic"?: "…", "account_name"?: "…" }`. XRechnung BR-DE-1 enforces this. Ask the user "on which account?" if you don't have the IBAN yet — never invent one.
 
    *Optional extras:* `jurisdiction` override, `format_override`, `notes` (≤ 1000 chars), `idempotency_key` (if not supplied, the script auto-mints one from a SHA-256 of the payload so accidental retries don't double-bill), `tax_exemption_reason` (per-line free-form BT-120 note to the buyer).
-2. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
-3. **Build the JSON payload** and invoke `scripts/create_invoice.sh` (passes payload on stdin).
-4. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later. For XRechnung output the file is the legally-binding **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF.
-5. **On a 4xx/5xx response**, surface the `error.code` and `error.message` from the response envelope. Read `references/troubleshooting.md` if the error is one of: `rate_limited`, `turnstile_required`, `idempotency_key_mismatch`, `validator_failed`. Common gotchas: missing `tax_exemption_code` for an E line, missing `payment_means` on an XRechnung path, reserved `country_code`, `tax_rate > 100`.
+3. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
+4. **Build the JSON payload** and invoke `scripts/create_invoice.sh` (passes payload on stdin).
+5. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later. For XRechnung output the legally binding file is the **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF. For XRechnung the response also carries a `preview_url` to the PDF visualisation (same content, human-readable) and a `submission` object describing how the user should deliver the XML (manual portal upload today). Surface both URLs and the submission hint to the user.
+6. **On a 4xx/5xx response**, surface the `error.code` and `error.message` from the response envelope. Read `references/troubleshooting.md` if the error is one of: `rate_limited`, `turnstile_required`, `idempotency_key_mismatch`, `validator_failed`. Common gotchas: missing `tax_exemption_code` for an E line, missing `payment_means` on an XRechnung path, reserved `country_code`, `tax_rate > 100`.
 
 ## Tools
 
