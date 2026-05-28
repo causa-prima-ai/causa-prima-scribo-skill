@@ -1,0 +1,2 @@
+# Release build output (scripts/release-zip.sh, .github/workflows/release.yml)
+dist/
