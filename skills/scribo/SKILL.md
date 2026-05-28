@@ -32,7 +32,7 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 1. **Collect the required fields** from the user in a brief conversational pass:
    - **Sender business name** — legal entity name.
    - **Sender address** — street (`address_line1`), `postcode`, `city`, `country_code` (ISO 3166 alpha-2 — reserved codes like `XX` / `ZZ` are rejected).
-   - **Sender tax / VAT ID + contact email** — tax ID with country prefix (e.g. `DE123456789`). The email doubles as the user's login for return visits.
+   - **Sender tax / VAT ID + contact email** — tax ID with country prefix (e.g. `DE123456788`). The email doubles as the user's login for return visits. **German Kleinunternehmer § 19 UStG** senders don't have a VAT ID — pass the **Steuernummer** as `sender.tax_registration_id` (e.g. `9999/999/9999`) instead so the EN 16931 BR-CO-26 constraint is still satisfied. Both fields can also be supplied side-by-side when both are issued (BT-31 + BT-32).
    - **Recipient name** — legal entity name.
    - **Recipient address** — street, postcode, city, country code. Add `leitweg_id` if it's a German federal B2G recipient — that field alone **auto-selects XRechnung UBL** (broadest Peppol AccessPoint compatibility; force `xrechnung_cii` via `format_override` only if a portal specifically requires the CII syntax).
    - **Recipient email** — `recipient.contact_email`. **Required** — Scribo refuses to draft without it. This is the accounts-payable / billing email. Recipient `tax_id` is optional in general but required for intra-EU reverse charge (`AE`).
@@ -119,13 +119,14 @@ JSON
 }
 ```
 
-**Example — Kleinunternehmer § 19 UStG** (category E + VATEX-EU-79-C; no sender VAT ID needed):
+**Example — Kleinunternehmer § 19 UStG** (category E + VATEX-EU-79-C; pass Steuernummer as `tax_registration_id` since there's no VAT ID — BR-CO-26 needs one or the other):
 
 ```jsonc
 {
   "sender": {
     "legal_name": "Friedrich Beratung", "country_code": "DE",
     "address_line1": "Musterstr. 1", "postcode": "10115", "city": "Berlin",
+    "tax_registration_id": "26/750/12345",
     "contact_email": "f@example.de"
   },
   "recipient": { /* ... */ },
