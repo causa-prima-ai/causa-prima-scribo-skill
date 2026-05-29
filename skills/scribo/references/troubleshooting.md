@@ -17,10 +17,32 @@ The helper scripts exit with sysexits-style codes:
 | Exit code | Meaning |
 |---|---|
 | `0` | OK |
-| `64` | Invalid input (4xx with `code` in `invalid_input` family) |
+| `10` | Verification required — `create_invoice.sh` was called without a token; it requested a challenge and printed `verification_required`. Collect the code, redeem, retry. |
+| `11` | Verification code rejected (`verification_invalid`, from `redeem_verification.sh`) — wrong/expired/revoked code. Re-prompt the user and retry. |
+| `64` | Invalid input / bad usage (4xx with `code` in the `invalid_input` family, or missing CLI arguments) |
 | `65` | Data validation failed (`validator_failed`) |
 | `70` | Server error (5xx) |
 | `75` | Rate-limited (429) |
+
+## Email verification (Scribo-03)
+
+Invoice creation requires proof the caller owns `sender.contact_email`. You orchestrate it — see the **Verification** section of `SKILL.md` for the worked sequence. The error codes:
+
+### `verification_required` (from `create_invoice.sh`, exit 10)
+
+Not a server error — `create_invoice.sh` was run without a `verification_token`. It has requested a challenge and printed `{ status: "verification_required", challenge_id, email_hint, next_step }`. Ask the user for the 6-digit code emailed to `email_hint`, run `redeem_verification.sh <challenge_id> <code>`, then re-run `create_invoice.sh` with `SCRIBO_VERIFICATION_TOKEN` set (or `--verification-token`).
+
+### `email_verification_required` (401, from `/api/v1/invoices`)
+
+The create reached the API without a valid `X-Email-Verification-Token` (or the token expired). Re-run the verification flow to mint a fresh token. (In normal use `create_invoice.sh` prevents this by requesting a challenge before it ever calls `/api/v1/invoices`.)
+
+### `verification_email_mismatch` (403, from `/api/v1/invoices`)
+
+The verified email doesn't match `sender.contact_email`. The token is bound to the exact email it was issued for — you can't verify one address and invoice as another. Re-run verification for the **same** email that's in `sender.contact_email`, or correct the payload.
+
+### `verification_invalid` (400, from `redeem_verification.sh`, exit 11)
+
+Uniform error for a wrong, expired, already-used, or revoked code — there's no signal which. Ask the user to re-check the code and try again. After 5 wrong attempts the challenge is revoked; re-run `create_invoice.sh` (no token) to mint a fresh challenge and a new code email.
 
 ## `rate_limited` (429)
 
@@ -46,11 +68,9 @@ What to tell the user:
 
 ## `turnstile_required` (403)
 
-The Scribo API requires a Cloudflare Turnstile token on the first generate from a given IP each hour. The helper scripts cannot solve the CAPTCHA. Tell the user:
+This headless skill is out of scope for CAPTCHA — Turnstile gates the web UI only, so you shouldn't normally see this from the API. If a verification request from a brand-new network ever does return it, the helper scripts can't solve the CAPTCHA. Tell the user:
 
-> "The first invoice from this network this hour needs to go through the web UI at https://scribo.causaprima.ai. Once you've completed one invoice there, subsequent calls from this terminal will work for the next hour."
-
-Subsequent calls within the hour from the same IP do not need the token.
+> "The first verification from this network needs to go through the web UI at https://scribo.causaprima.ai. Once you've verified your email there once, subsequent calls from this terminal will work."
 
 ## `idempotency_key_mismatch` (422)
 

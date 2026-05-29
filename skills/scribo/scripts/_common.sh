@@ -31,6 +31,23 @@ scribo_sha256() {
   fi
 }
 
+# Mask an email for display in the verification_required hint, e.g.
+# alice@example.com -> a***@e***.com. Mirrors the MCP server's email_hint
+# so the LLM can prompt the user without echoing the full address.
+scribo_mask_email() {
+  local email="$1" local_part domain tld
+  case "$email" in
+    *@*.*)
+      local_part="${email%@*}"
+      domain="${email#*@}"
+      tld="${domain##*.}"
+      printf '%s***@%s***.%s' "${local_part:0:1}" "${domain:0:1}" "$tld" ;;
+    *)
+      # No domain / no TLD — degrade gracefully rather than leak the raw value.
+      printf '%s***' "${email:0:1}" ;;
+  esac
+}
+
 # Map an error envelope to a sysexits-style exit code.
 # Args: <http_status> <body_file>
 scribo_exit_for_error() {
@@ -44,6 +61,11 @@ scribo_exit_for_error() {
     4*)
       case "$code" in
         validator_failed) return 65 ;;
+        # verification_invalid (wrong/expired/revoked code, from the redeem
+        # endpoint) gets its own code so a caller can distinguish "ask the user
+        # for the code again" from a generic malformed request. Pairs with the
+        # exit 10 that create_invoice.sh emits for verification_required.
+        verification_invalid) return 11 ;;
         *) return 64 ;;
       esac
       ;;
@@ -92,9 +114,13 @@ scribo_request() {
     headers+=(-H "Authorization: Bearer $SCRIBO_API_KEY")
   fi
   set +e
+  # NB: "${headers[@]+...}" guard — under `set -u`, expanding an empty array as
+  # "${headers[@]}" is an "unbound variable" error on bash 3.2 (the default
+  # /usr/bin/env bash on macOS). The guard expands to nothing when no API key
+  # set a header, and to the elements otherwise.
   curl -sS \
     -X "$method" \
-    "${headers[@]}" \
+    "${headers[@]+"${headers[@]}"}" \
     "$@" \
     -o "$body_file" \
     -w '%{http_code}' \

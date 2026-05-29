@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# Generate a Scribo invoice via POST /mcp (JSON-RPC tools/call create_invoice).
-#
-# Routes through the streamable-http MCP bridge because the public
-# POST /api/v1/invoices endpoint gates the first request per IP per hour
-# behind a Cloudflare Turnstile challenge that a bash script can't solve.
-# The /mcp bridge attaches the trusted internal secret server-side and
-# the api skips Turnstile for those callers; per-IP rate limits still
-# bind via x-causa-client-ip.
+# Generate a Scribo invoice via POST /api/v1/invoices.
 #
 # Usage:
-#   create_invoice.sh [--from FILE] [--idempotency-key KEY]
+#   create_invoice.sh [--from FILE] [--idempotency-key KEY] [--verification-token TOKEN]
 #
 # Reads a JSON payload from stdin by default, or from FILE if --from is given.
-# Prints the (unwrapped) JSON response to stdout. Sets exit code by sysexits:
+# Prints the JSON response to stdout. Sets exit code by sysexits:
 #   0  ok
+#   10 verification required — a code was emailed to sender.contact_email; see below
 #   64 invalid input / 4xx (other than validator_failed and rate_limited)
 #   65 validator_failed (Invopop schematron rejected the invoice)
 #   70 server error / network error
 #   75 rate-limited (429)
+#
+# Email verification (Scribo-03): /api/v1/invoices requires proof that the
+# caller owns sender.contact_email. Supply the verification_token via
+# --verification-token TOKEN (or the SCRIBO_VERIFICATION_TOKEN env var) and it
+# is sent as the X-Email-Verification-Token header. One token covers several
+# invoices for the same sender within its ~30-minute TTL.
+#
+# If no token is supplied, this script does NOT create the invoice. Instead it
+# requests a verification challenge for sender.contact_email (Scribo emails a
+# 6-digit code), prints a verification_required object, and exits 10. Then:
+#   1. Ask the user for the 6-digit code from the email.
+#   2. redeem_verification.sh <challenge_id> <code>   → verification_token
+#   3. re-run: create_invoice.sh --verification-token <token>   (same payload)
 
 set -euo pipefail
 
@@ -29,6 +36,7 @@ scribo_require curl jq
 
 input_file=""
 idempotency_key=""
+verification_token="${SCRIBO_VERIFICATION_TOKEN:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,8 +52,14 @@ while [ $# -gt 0 ]; do
     --idempotency-key=*)
       idempotency_key="${1#--idempotency-key=}"
       shift ;;
+    --verification-token)
+      verification_token="${2:-}"
+      shift 2 ;;
+    --verification-token=*)
+      verification_token="${1#--verification-token=}"
+      shift ;;
     -h|--help)
-      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *)
       printf 'scribo: unknown argument: %s\n' "$1" >&2
@@ -54,10 +68,7 @@ while [ $# -gt 0 ]; do
 done
 
 payload_file="$(mktemp)"
-envelope_file="$(mktemp)"
-response_file="$(mktemp)"
-status_file="$(mktemp)"
-trap 'rm -f "$payload_file" "$envelope_file" "$response_file" "$status_file"' EXIT
+trap 'rm -f "$payload_file"' EXIT
 
 if [ -n "$input_file" ]; then
   if [ ! -r "$input_file" ]; then
@@ -74,124 +85,49 @@ if ! jq -e . <"$payload_file" >/dev/null 2>&1; then
   exit 64
 fi
 
+# Scribo-03: without a verification token we cannot create the invoice. Request
+# a challenge for the sender email, then emit a verification_required object so
+# the caller knows to collect the code and retry. (Mirrors the MCP server's
+# create_invoice -> verification_required -> verify_email_code orchestration.)
+if [ -z "$verification_token" ]; then
+  sender_email="$(jq -r '.sender.contact_email // empty' <"$payload_file")"
+  if [ -z "$sender_email" ]; then
+    printf 'scribo: sender.contact_email is required (it is the address Scribo verifies and your login)\n' >&2
+    exit 64
+  fi
+
+  request_body="$(jq -nc --arg email "$sender_email" '{ email: $email }')"
+  # scribo_request prints the error envelope and exits non-zero on a 4xx/5xx
+  # (e.g. turnstile_required on a fresh network); set -e then propagates here.
+  challenge_response="$(scribo_request POST /api/v1/scribo/email-verifications \
+    -H "Content-Type: application/json" \
+    --data-binary "$request_body")"
+
+  challenge_id="$(printf '%s' "$challenge_response" | jq -r '.challenge_id // empty')"
+  expires_at="$(printf '%s' "$challenge_response" | jq -r '.expires_at // empty')"
+  email_hint="$(scribo_mask_email "$sender_email")"
+
+  if [ -z "$challenge_id" ]; then
+    printf 'scribo: verification request did not return a challenge_id\n' >&2
+    printf '%s\n' "$challenge_response" >&2
+    exit 70
+  fi
+
+  jq -nc \
+    --arg challenge_id "$challenge_id" \
+    --arg email_hint "$email_hint" \
+    --arg expires_at "$expires_at" \
+    --arg next_step "Ask the user for the 6-digit code emailed to ${email_hint}, then run: redeem_verification.sh ${challenge_id} <code> to get a verification_token, and re-run create_invoice.sh --verification-token <token> with the same payload." \
+    '{ status: "verification_required", challenge_id: $challenge_id, email_hint: $email_hint, expires_at: $expires_at, next_step: $next_step }'
+  exit 10
+fi
+
 if [ -z "$idempotency_key" ]; then
   idempotency_key="$(jq -cS . <"$payload_file" | scribo_sha256)"
 fi
 
-# Wrap the CreateInvoiceInput in a JSON-RPC tools/call envelope. The
-# server-side scribo-mcp tool schema accepts the same field shape as the
-# public /api/v1/invoices request body, plus a top-level idempotency_key
-# (the public surface takes it as the Idempotency-Key header instead).
-jq --arg ik "$idempotency_key" '{
-  jsonrpc: "2.0",
-  id: 1,
-  method: "tools/call",
-  params: {
-    name: "create_invoice",
-    arguments: (. + { idempotency_key: $ik })
-  }
-}' <"$payload_file" >"$envelope_file"
-
-# POST to /mcp directly — bypass `scribo_request` because we need the MCP
-# JSON-RPC response shape, not the public REST envelope.
-auth_header=()
-if [ -n "$SCRIBO_API_KEY" ]; then
-  auth_header=(-H "Authorization: Bearer $SCRIBO_API_KEY")
-fi
-
-set +e
-curl -sS \
-  -X POST \
+scribo_request POST /api/v1/invoices \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  ${auth_header[@]+"${auth_header[@]}"} \
-  --data-binary "@$envelope_file" \
-  -o "$response_file" \
-  -w '%{http_code}' \
-  "${SCRIBO_BASE_URL}/mcp" \
-  >"$status_file"
-curl_exit=$?
-set -e
-
-if [ "$curl_exit" -ne 0 ]; then
-  printf 'scribo: curl failed (exit %s) calling POST /mcp\n' "$curl_exit" >&2
-  exit 70
-fi
-http_status="$(cat "$status_file")"
-
-# Transport-level failure (proxy outage, malformed CORS preflight, etc.).
-# MCP servers return JSON-RPC errors with HTTP 200, so a non-2xx here is
-# something else.
-if [ "${http_status:0:1}" != "2" ]; then
-  scribo_print_error "$http_status" "$response_file"
-  rc=0
-  scribo_exit_for_error "$http_status" "$response_file" || rc=$?
-  exit "$rc"
-fi
-
-# JSON-RPC error frame. scribo-mcp wraps upstream failures here with the
-# api's error.code in the message (e.g. "Invopop validator rejected the
-# document (3 issue(s))"). Synthesise a public-API-shaped envelope so the
-# shared printer / exit-code mapper Just Work.
-if jq -e '.error' <"$response_file" >/dev/null 2>&1; then
-  err_code="$(jq -r '.error.code // -32603' <"$response_file")"
-  err_message="$(jq -r '.error.message // "MCP tool returned an error."' <"$response_file")"
-
-  case "$err_message" in
-    *"validator rejected"*|*"validator_failed"*) code="validator_failed"; status="400" ;;
-    *"Rate limit"*|*"rate_limited"*)             code="rate_limited";   status="429" ;;
-    *"unsupported_jurisdiction"*)                 code="unsupported_jurisdiction"; status="400" ;;
-    *)                                           code="mcp_${err_code}"; status="500" ;;
-  esac
-
-  synth_file="$(mktemp)"
-  trap 'rm -f "$payload_file" "$envelope_file" "$response_file" "$status_file" "$synth_file"' EXIT
-  jq -n --arg code "$code" --arg message "$err_message" '{ error: { code: $code, message: $message } }' >"$synth_file"
-
-  scribo_print_error "$status" "$synth_file"
-  rc=0
-  scribo_exit_for_error "$status" "$synth_file" || rc=$?
-  exit "$rc"
-fi
-
-# Tool-level error (post-fix scribo-mcp shape): result.isError + a JSON
-# envelope on content[0].text.
-if jq -e '.result.isError == true' <"$response_file" >/dev/null 2>&1; then
-  tool_envelope_file="$(mktemp)"
-  trap 'rm -f "$payload_file" "$envelope_file" "$response_file" "$status_file" "$tool_envelope_file"' EXIT
-  jq -r '.result.content[0].text // empty' <"$response_file" >"$tool_envelope_file"
-
-  if jq -e '.error' <"$tool_envelope_file" >/dev/null 2>&1; then
-    # Already in public-API envelope shape — print and exit.
-    scribo_print_error 400 "$tool_envelope_file"
-    rc=0
-    scribo_exit_for_error 400 "$tool_envelope_file" || rc=$?
-    exit "$rc"
-  fi
-  if jq -e '.ok == false' <"$tool_envelope_file" >/dev/null 2>&1; then
-    # ok=false shape: re-pack into the public envelope.
-    synth_file="$(mktemp)"
-    trap 'rm -f "$payload_file" "$envelope_file" "$response_file" "$status_file" "$tool_envelope_file" "$synth_file"' EXIT
-    jq '{ error: { code: (.error_code // "tool_error"), message: (.error // "Tool returned an error."), details: .validator_details, retry_after_seconds: .retry_after_seconds } | with_entries(select(.value != null)) }' <"$tool_envelope_file" >"$synth_file"
-    code="$(jq -r '.error.code' <"$synth_file")"
-    case "$code" in
-      validator_failed)            http_status=400 ;;
-      rate_limited)                http_status=429 ;;
-      unsupported_jurisdiction)    http_status=400 ;;
-      *)                           http_status=400 ;;
-    esac
-    scribo_print_error "$http_status" "$synth_file"
-    rc=0
-    scribo_exit_for_error "$http_status" "$synth_file" || rc=$?
-    exit "$rc"
-  fi
-
-  printf 'scribo: tool returned isError with no recognised envelope\n' >&2
-  head -c 2000 <"$tool_envelope_file" >&2
-  printf '\n' >&2
-  exit 70
-fi
-
-# Success: unwrap result.content[0].text and print as plain JSON, matching
-# the shape callers of the previous /api/v1/invoices flow expect.
-jq -r '.result.content[0].text // empty' <"$response_file"
+  -H "Idempotency-Key: $idempotency_key" \
+  -H "X-Email-Verification-Token: $verification_token" \
+  --data-binary "@$payload_file"

@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Least-privilege token: this workflow only reads the checkout, never
+# writes to the repo or calls the API. (CodeQL: limit GITHUB_TOKEN.)
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: syntax check (bash -n)
+        run: |
+          for f in skills/scribo/scripts/*.sh skills/scribo/tests/*.sh; do
+            echo "checking $f"
+            bash -n "$f"
+          done
+      - name: shellcheck (informational)
+        continue-on-error: true
+        run: shellcheck skills/scribo/scripts/*.sh skills/scribo/tests/smoke.sh
+
+  smoke:
+    # Run the scripts end-to-end against a mock API. The macOS leg pins
+    # /bin/bash (3.2.57) — the default macOS shell, where the `set -u`
+    # empty-array expansion bug lived. ubuntu covers a modern bash 5.x.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bash_bin: bash
+          - os: macos-latest
+            bash_bin: /bin/bash
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: tool versions
+        run: |
+          "${{ matrix.bash_bin }}" --version | head -1
+          jq --version
+          python3 --version
+      - name: smoke
+        env:
+          BASH_BIN: ${{ matrix.bash_bin }}
+        run: bash skills/scribo/tests/smoke.sh
