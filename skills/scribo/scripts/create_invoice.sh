@@ -59,7 +59,7 @@ while [ $# -gt 0 ]; do
       verification_token="${1#--verification-token=}"
       shift ;;
     -h|--help)
-      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *)
       printf 'scribo: unknown argument: %s\n' "$1" >&2
