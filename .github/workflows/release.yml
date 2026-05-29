@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build scribo-skill.zip
+        run: |
+          mkdir -p dist
+          # Package the skill folder under a top-level `scribo/` directory so
+          # the uploaded skill lands as `scribo` in Settings → Skills.
+          # The skill lives at skills/scribo/ in the plugin layout.
+          ln -s skills/scribo scribo
+          zip -r dist/scribo-skill.zip scribo \
+            -x "scribo/.git/*" "scribo/.github/*" "scribo/dist/*"
+          rm scribo
+
+      - name: Verify zip contains SKILL.md
+        run: |
+          unzip -l dist/scribo-skill.zip | grep -E "scribo/SKILL\.md$"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/scribo-skill.zip
+          generate_release_notes: true
