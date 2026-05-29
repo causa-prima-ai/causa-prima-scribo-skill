@@ -50,6 +50,16 @@ After `/plugin install scribo-skill`, ask Claude in any session:
 
 Claude should walk you through the missing fields and call `create_invoice.sh`. For a direct check, the underlying helper script is at `~/.claude/plugins/scribo-skill/skills/scribo/scripts/list_jurisdictions.sh`.
 
+## First-time verification
+
+Before Scribo generates the first invoice for a sender email, it proves you own that address. The assistant handles this for you:
+
+1. It builds the invoice and runs `create_invoice.sh`. With no token, the script asks Scribo to email a 6-digit code to your `sender.contact_email` and reports that verification is needed. **The verification email is expected — it's not phishing.** It comes from `verify@scribo.causaprima.ai` and contains a link plus a 6-digit code.
+2. The assistant asks you for the code; you paste it back.
+3. It redeems the code for a short-lived token and generates the invoice.
+
+The code expires in 15 minutes. One verification covers about 30 minutes of invoices for the same sender, so you won't be re-prompted on every invoice. See the **Verification** section of `skills/scribo/SKILL.md` for the full flow.
+
 ## Repo layout
 
 ```
@@ -59,14 +69,17 @@ skills/scribo/
   SKILL.md                        # prompt fragment Claude loads on invoice intent
   scripts/
     _common.sh                    # shared bash helpers (auto-mint idempotency key)
-    create_invoice.sh             # POST /api/v1/invoices
+    create_invoice.sh             # POST /api/v1/invoices (takes --verification-token)
+    request_verification.sh       # POST /api/v1/scribo/email-verifications
+    redeem_verification.sh        # POST /api/v1/scribo/email-verifications/:id/redeem
     get_invoice.sh                # GET  /api/v1/invoices/:id
     download_invoice.sh           # GET  /api/v1/invoices/:id/download
     list_jurisdictions.sh         # GET  /api/v1/jurisdictions
   references/
     jurisdictions.md              # format priority chain
     tax-codes.md                  # EN 16931 S/Z/E/AE/K/G/O picker guidance
-    troubleshooting.md            # rate limits, Turnstile, idempotency, validator errors
+    troubleshooting.md            # verification, rate limits, Turnstile, idempotency, validator errors
+  tests/                          # mock-server.py + smoke.sh (CI only; excluded from the release zip)
 ```
 
 ## Alternative: hosted MCP endpoint

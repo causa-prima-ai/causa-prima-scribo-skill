@@ -8,5 +8,5 @@ mkdir -p dist
 ln -sfn skills/scribo scribo
 trap 'rm -f scribo' EXIT
 zip -r dist/scribo-skill.zip scribo \
-  -x "scribo/.git/*" "scribo/.github/*" "scribo/dist/*"
+  -x "scribo/.git/*" "scribo/.github/*" "scribo/dist/*" "scribo/tests/*"
 echo "→ dist/scribo-skill.zip ($(du -h dist/scribo-skill.zip | cut -f1))"

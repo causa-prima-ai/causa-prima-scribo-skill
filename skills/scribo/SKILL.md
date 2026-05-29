@@ -50,8 +50,50 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
    *Optional extras:* `jurisdiction` override, `format_override`, `notes` (≤ 1000 chars), `idempotency_key` (if not supplied, the script auto-mints one from a SHA-256 of the payload so accidental retries don't double-bill), `tax_exemption_reason` (per-line free-form BT-120 note to the buyer).
 3. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
 4. **Build the JSON payload** and invoke `scripts/create_invoice.sh` (passes payload on stdin).
-5. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later. For XRechnung output the legally binding file is the **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF. For XRechnung the response also carries a `preview_url` to the PDF visualisation (same content, human-readable) and a `submission` object describing how the user should deliver the XML (manual portal upload today). Surface both URLs and the submission hint to the user.
-6. **On a 4xx/5xx response**, surface the `error.code` and `error.message` from the response envelope. Read `references/troubleshooting.md` if the error is one of: `rate_limited`, `turnstile_required`, `idempotency_key_mismatch`, `validator_failed`. Common gotchas: missing `tax_exemption_code` for an E line, missing `payment_means` on an XRechnung path, reserved `country_code`, `tax_rate > 100`.
+5. **Verify email ownership the first time** — see the **Verification** section below. The first `create_invoice.sh` for a sender email prints `status: "verification_required"` with a `challenge_id` (exit 10); Scribo emails a 6-digit code to `sender.contact_email`. Ask the user for the code, redeem it for a `verification_token` with `scripts/redeem_verification.sh`, then re-run the create with the token. One token is good for ~30 minutes of invoices for the same sender.
+6. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later. For XRechnung output the legally binding file is the **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF. For XRechnung the response also carries a `preview_url` to the PDF visualisation (same content, human-readable) and a `submission` object describing how the user should deliver the XML (manual portal upload today). Surface both URLs and the submission hint to the user.
+7. **On a 4xx/5xx response**, surface the `error.code` and `error.message` from the response envelope. Read `references/troubleshooting.md` if the error is one of: `email_verification_required`, `verification_email_mismatch`, `verification_invalid`, `rate_limited`, `turnstile_required`, `idempotency_key_mismatch`, `validator_failed`. Common gotchas: missing `tax_exemption_code` for an E line, missing `payment_means` on an XRechnung path, reserved `country_code`, `tax_rate > 100`.
+
+## Verification (required before the first invoice)
+
+Scribo proves the caller owns `sender.contact_email` **before** it generates anything (Scribo-03). You orchestrate it: call create, get told to verify, ask the user for the code, redeem, retry.
+
+**Canonical sequence:**
+
+1. Build the payload and call `scripts/create_invoice.sh`. With no token it does **not** create the invoice; it requests a challenge (Scribo emails a 6-digit code to the sender) and prints:
+   ```json
+   {
+     "status": "verification_required",
+     "challenge_id": "9b1d…",
+     "email_hint": "a***@e***.com",
+     "expires_at": "…",
+     "next_step": "Ask the user for the 6-digit code emailed to a***@e***.com, then run: redeem_verification.sh 9b1d… <code> …"
+   }
+   ```
+   The script exits with code `10`.
+2. Tell the user: *"I've sent a verification email to a***@e***.com. Please paste the 6-digit code from your inbox."* The code is 6 characters from `{2,3,4,5,6,7,8,9}` (no 0/1, no letters).
+3. When the user gives you the code, run `scripts/redeem_verification.sh <challenge_id> <code>`. It prints `{ "verification_token": "…", "expires_at": "…" }`.
+4. Re-run the create with the token (same payload). Prefer the environment variable so the token doesn't land in the process list or shell history:
+   ```sh
+   SCRIBO_VERIFICATION_TOKEN=<verification_token> \
+     cat payload.json | scripts/create_invoice.sh
+   ```
+   The token is reusable for ~30 minutes, so one `export SCRIBO_VERIFICATION_TOKEN=…` covers several invoices for the same sender. The `--verification-token <token>` flag does the same thing if you prefer it.
+
+If the code is wrong, `redeem_verification.sh` exits `11` with `verification_invalid`. Ask the user to re-check and try again. After 5 wrong attempts the challenge is revoked — re-run `create_invoice.sh` (no token) to mint a fresh one.
+
+> **Unattended / batch use:** every tokenless `create_invoice.sh` call sends a verification email and exits `10`. For scripted runs, verify once and `export SCRIBO_VERIFICATION_TOKEN=…` so subsequent calls go straight through. (The server caps sends to 1 per 30 s and 5 per hour per email, so an accidental retry loop can't flood an inbox.)
+
+### Worked example
+
+User: *"Issue an invoice to Acme GmbH for 1 day of consulting at €1000, my email is alice@example.com."*
+
+1. `cat payload.json | scripts/create_invoice.sh` → `{ "status": "verification_required", "challenge_id": "9b1d…", "email_hint": "a***@e***.com" }` (exit 10).
+2. Reply: *"I've sent a verification email to a***@e***.com. Please paste the 6-digit code."*
+3. User: *"234567"*
+4. `scripts/redeem_verification.sh 9b1d… 234567` → `{ "verification_token": "vtok…" }`.
+5. `SCRIBO_VERIFICATION_TOKEN=vtok… ; cat payload.json | scripts/create_invoice.sh` → `{ invoice_id, download_url, format, … }`.
+6. Reply to the user with the download URL.
 
 ## Tools
 
@@ -153,6 +195,16 @@ Returns `{ invoice_id, document_id, format, download_url, download_url_expires_a
 
 Format is picked from the priority chain (`format_override` → Leitweg-ID → `jurisdiction` → sender country → sender tax-ID prefix → recipient country → recipient tax-ID prefix). See `references/jurisdictions.md` for the full table.
 
+Pass the email `verification_token` via the `SCRIBO_VERIFICATION_TOKEN` env var (preferred — keeps it out of the process list and shell history) or the `--verification-token <token>` flag; it is sent as the `X-Email-Verification-Token` header. **Without a token the script requests a verification challenge and prints `status: "verification_required"` (exit 10) instead of creating the invoice** — see the **Verification** section above.
+
+### `scripts/request_verification.sh EMAIL` — POST `/api/v1/scribo/email-verifications`
+
+Requests an email-ownership challenge; Scribo emails a magic link **and** a 6-digit code to `EMAIL`. Returns `{ challenge_id, expires_at, next_request_allowed_at }`. You normally don't call this directly — `create_invoice.sh` requests the challenge for you when no token is present.
+
+### `scripts/redeem_verification.sh CHALLENGE_ID CODE` — POST `/api/v1/scribo/email-verifications/:id/redeem`
+
+Exchanges the 6-digit code the user copied from the email for a `verification_token` (reusable ~30 min). All failures (wrong/expired/revoked code) return a uniform `verification_invalid` (exit 11).
+
 ### `scripts/get_invoice.sh INVOICE_ID` — GET `/api/v1/invoices/:id`
 
 Fetch metadata + a fresh signed download URL for a previously generated invoice. Tenant-scoped (the caller's session must own it).
@@ -201,7 +253,8 @@ For any XRechnung-resolved invoice (Leitweg-ID present or `format_override=xrech
 - Plain PDF output only for US, IT, MX, BR, and other jurisdictions where the regulatory submission path isn't yet supported (those receive a banner: "this country requires submission via certified provider").
 - Negative line amounts → use `discount` instead.
 - Total ≤ 0 → rejected (credit notes are a separate document type, deferred).
-- Rate limits: 50 invoices/24h per tenant, 200/hour per IP. First generate per IP per hour requires a Cloudflare Turnstile token — only obtainable through the web UI at `scribo.causaprima.ai`. The CLI scripts will surface a `turnstile_required` error in that case and the user should fall back to the web UI for that one call.
+- Email verification is required before the first invoice for any sender email (see **Verification**). The `verification_token` is reusable for ~30 min; after that, the next create re-runs the challenge.
+- Rate limits: 50 invoices/24h per tenant, 200/hour per IP. Verification requests are separately capped (per email: 1 send / 30 s and 5 / hour; per IP: 10 / min). This headless skill is out of scope for CAPTCHA — Turnstile gates the web UI only. If a verification request from a brand-new network ever returns `turnstile_required`, do the first verification through the web UI at `scribo.causaprima.ai`.
 
 ## Setup
 

@@ -70,8 +70,11 @@ if [ -n "$SCRIBO_API_KEY" ]; then
 fi
 
 set +e
+# "${headers[@]+...}" guard: expanding an empty array as "${headers[@]}" under
+# `set -u` is an "unbound variable" error on bash 3.2 (the macOS default). The
+# guard expands to nothing when no API key set a header.
 curl -sS \
-  "${headers[@]}" \
+  "${headers[@]+"${headers[@]}"}" \
   -o "$body_file" \
   -w '%{http_code}' \
   "${SCRIBO_BASE_URL}/api/v1/invoices/${invoice_id}/download" \
