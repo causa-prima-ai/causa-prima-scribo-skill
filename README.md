@@ -1,6 +1,6 @@
 # Scribo Skill for Claude & Codex
 
-Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude Code, Claude Desktop, or the OpenAI Codex CLI.
+Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude.ai, Claude Code, Claude Desktop, Cowork, or the OpenAI Codex CLI.
 
 This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` directly via small `curl` + `jq` helpers. No MCP server, no npm install, no signup ceremony — the sender's email is the login.
 
@@ -22,17 +22,25 @@ This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` di
 
 The skill activates as `/scribo-skill:scribo` and triggers automatically when you ask Claude to draft or generate an invoice.
 
-### Claude Desktop / claude.ai (coming soon)
+### Claude.ai, Claude Desktop & Cowork — `.zip` upload
 
-We're submitting `scribo-skill` to Anthropic's hosted plugin registry. Once approved, install with one click from the in-app plugin browser.
+One upload per account covers Claude.ai web chat, Claude Desktop, and Cowork sessions across any repo:
 
-### OpenAI Codex CLI
+1. Download `scribo-skill.zip` from the [latest release](https://github.com/causa-prima-ai/scribo-skill/releases/latest).
+2. Open **Settings → Customize → Skills** and click **Upload skill**.
+3. Select `scribo-skill.zip`; the skill is enabled for new chats / sessions on that account.
 
-Codex CLI reads skills from `~/.codex/skills/`, not from the Claude plugin registry. Clone and copy the inner skill directory:
+The release zip packages the skill under a top-level `scribo/` directory (so `scribo/SKILL.md` sits at the zip root, which is what the Skills uploader expects). Build the same artifact locally with `scripts/release-zip.sh`.
+
+### OpenAI Codex CLI / manual `git clone`
+
+Codex CLI reads skills from `~/.codex/skills/`, not from the Claude plugin registry. Clone once, then copy the **inner** `skills/scribo` directory to the destination for your surface — `SKILL.md` must land at `…/scribo/SKILL.md`, so never clone the repo root straight into a skills directory:
 
 ```sh
 git clone https://github.com/causa-prima-ai/scribo-skill /tmp/scribo-skill
-cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo
+cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo     # Codex CLI
+# or .claude/skills/scribo      (Claude Code project / Cowork repo-baked)
+# or ~/.claude/skills/scribo    (Claude Code user-global)
 ```
 
 ## Configuration
@@ -44,7 +52,7 @@ cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo
 
 ## Verify install
 
-After `/plugin install scribo-skill`, ask Claude in any session:
+After installing (any method above), ask Claude in any session:
 
 > Generate a test invoice for ACME GmbH (DE) billing Beispiel GmbH (DE) for 3 hours of consulting at €120/h, 19% VAT.
 

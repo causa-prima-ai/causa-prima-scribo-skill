@@ -197,4 +197,4 @@ For any XRechnung-resolved invoice (Leitweg-ID present or `format_override=xrech
 
 ## Setup
 
-End-user install instructions live in `README.md`. Three paths: Claude Code project / user skills directory, Claude Desktop via the MCP package, and Codex CLI under `~/.codex/skills/scribo/`.
+End-user install instructions live in `README.md`. Three methods: `/plugin install` (Claude Code), a `.zip` upload via Settings → Customize → Skills (Claude.ai, Claude Desktop, Cowork), and `git clone` + copy of the inner `skills/scribo` directory (Codex CLI, manual Claude Code, Cowork repo-baked).
