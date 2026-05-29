@@ -16,6 +16,12 @@ PDF_BYTES = b"%PDF-1.5\n%mock-invoice\n"
 
 
 class Handler(BaseHTTPRequestHandler):
+    # Counts every POST /api/v1/invoices attempt (regardless of outcome) so the
+    # smoke test can prove the verify-then-persist contract: the tokenless path
+    # must never hit this endpoint. Class-level — shared across per-request
+    # handler instances.
+    invoice_post_attempts = 0
+
     def log_message(self, *_):  # quiet
         pass
 
@@ -33,6 +39,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = self.path
+        if p == "/__debug/invoice-post-attempts":
+            return self._json(200, {"count": Handler.invoice_post_attempts})
         if p == "/api/v1/jurisdictions":
             return self._json(200, [
                 {"jurisdiction": "DE", "formats": ["zugferd_comfort"], "default_format": "zugferd_comfort"},
@@ -68,6 +76,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"verification_token": VERIFICATION_TOKEN, "expires_at": "2099-01-01T00:30:00Z"})
             return self._json(400, {"error": {"code": "verification_invalid", "message": "Verification challenge invalid, expired, or revoked."}})
         if p == "/api/v1/invoices":
+            # Count before the token check so a regression that POSTs without a
+            # token (and gets the 401) is still caught by the smoke test.
+            Handler.invoice_post_attempts += 1
             token = self.headers.get("X-Email-Verification-Token")
             if not token:
                 return self._json(401, {"error": {"code": "email_verification_required", "message": "Email verification required."}})

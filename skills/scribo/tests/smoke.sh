@@ -30,6 +30,15 @@ trap cleanup EXIT
 printf 'bash under test: '; "$bash_bin" --version | head -1
 jq --version >/dev/null || fail "jq not found"
 
+# 0. Static guard: no script may reference the removed legacy post-persist
+# magic-link endpoint (/v1/sessions/magic-link/redeem). The current
+# verify-then-persist flow uses /api/v1/scribo/email-verifications/:id/redeem
+# and the magic_link_sent field (underscore), so neither pattern false-positives.
+if grep -REn 'sessions/magic-link|magic-link/redeem' "$scripts" >/tmp/smoke.legacy 2>/dev/null; then
+  fail "script references the removed legacy magic-link endpoint: $(cat /tmp/smoke.legacy)"
+fi
+ok "no legacy /v1/sessions/magic-link/redeem reference in scripts"
+
 # Boot the mock and wait for it to accept connections.
 python3 "$root/tests/mock-server.py" &
 mock_pid=$!
@@ -55,6 +64,14 @@ challenge="$(printf '%s' "$out" | jq -r .challenge_id)"
 [ -n "$challenge" ] && [ "$challenge" != "null" ] || fail "no challenge_id"
 ok "create (no token) -> verification_required / exit 10"
 
+# 2b. verify-then-persist: the tokenless create must NOT have persisted an
+# invoice. Assert it returned no invoice id and never hit POST /api/v1/invoices.
+printf '%s' "$out" | jq -e 'has("invoice_id") or has("document_id")' >/dev/null 2>&1 \
+  && fail "tokenless create returned an invoice id (must not persist before verification)"
+n="$(curl -s "$SCRIBO_BASE_URL/__debug/invoice-post-attempts" | jq -r .count)"
+[ "$n" = "0" ] || fail "tokenless create hit POST /api/v1/invoices ($n times); must verify before persist"
+ok "tokenless create did NOT POST /api/v1/invoices (verify-then-persist)"
+
 # 3. create without contact_email -> exit 64
 out="$(printf '%s' '{"sender":{"legal_name":"X"},"recipient":{},"line_items":[],"currency":"EUR"}' | "$bash_bin" "$scripts/create_invoice.sh" 2>/tmp/smoke.err)"; rc=$?
 [ "$rc" -eq 64 ] || fail "create missing contact_email exit=$rc (want 64)"
@@ -79,6 +96,12 @@ out="$(SCRIBO_VERIFICATION_TOKEN="$token" bash -c 'printf "%s" "$1" | "$2" "$3/c
 [ "$(printf '%s' "$out" | jq -r .received_verification_token)" = "$token" ] || fail "X-Email-Verification-Token did not round-trip"
 invid="$(printf '%s' "$out" | jq -r .invoice_id)"
 ok "create (env-var token) -> invoice; header round-trips"
+
+# 6b. verify-then-persist: exactly one POST /api/v1/invoices total — none on the
+# tokenless leg (step 2b), one here after redeeming the verification token.
+n="$(curl -s "$SCRIBO_BASE_URL/__debug/invoice-post-attempts" | jq -r .count)"
+[ "$n" = "1" ] || fail "expected exactly 1 invoice POST after verification, got $n"
+ok "invoice persisted exactly once, only after verification"
 
 # 7. download -> %PDF bytes, exit 0 (exercises download_invoice.sh's own curl on bash 3.2)
 run download_invoice.sh "$invid" -o /tmp/smoke.pdf
