@@ -1,6 +1,6 @@
-# Scribo Skill for Claude & Codex
+# Scribo Skill for Claude, ChatGPT & Codex
 
-Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude.ai, Claude Code, Claude Desktop, Cowork, or the OpenAI Codex CLI.
+Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude.ai, Claude Code, Claude Desktop, Cowork, ChatGPT, or the OpenAI Codex CLI.
 
 This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` directly via small `curl` + `jq` helpers. No MCP server, no npm install, no signup ceremony — the sender's email is the login.
 
@@ -22,15 +22,17 @@ This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` di
 
 The skill activates as `/scribo-skill:scribo` and triggers automatically when you ask Claude to draft or generate an invoice.
 
-### Claude.ai, Claude Desktop & Cowork — `.zip` upload
+### Claude.ai, Claude Desktop, Cowork & ChatGPT — `.zip` upload
 
-One upload per account covers Claude.ai web chat, Claude Desktop, and Cowork sessions across any repo:
+Upload the packaged skill once per account; it then works in new chats / sessions across any repo.
 
 1. Download `scribo-skill.zip` from the [latest release](https://github.com/causa-prima-ai/scribo-skill/releases/latest).
-2. Open **Settings → Customize → Skills** and click **Upload skill**.
-3. Select `scribo-skill.zip`; the skill is enabled for new chats / sessions on that account.
+2. Add it in your assistant:
+   - **Claude.ai / Claude Desktop / Cowork** — **Settings → Customize → Skills → Upload skill** (one upload covers all three on the account).
+   - **ChatGPT** — **New skill → Upload from your computer** (see [Skills in ChatGPT](https://help.openai.com/en/articles/20001066-skills-in-chatgpt)); ChatGPT scans the upload before it goes live.
+3. Select `scribo-skill.zip`.
 
-The release zip packages the skill under a top-level `scribo/` directory (so `scribo/SKILL.md` sits at the zip root, which is what the Skills uploader expects). Build the same artifact locally with `scripts/release-zip.sh`.
+The release zip packages the skill as a single top-level `scribo/` directory (so `scribo/SKILL.md` is at the folder root) — exactly the shape both Claude's and ChatGPT's skill uploaders expect. Build the same artifact locally with `scripts/release-zip.sh`.
 
 ### OpenAI Codex CLI / manual `git clone`
 
@@ -89,23 +91,6 @@ skills/scribo/
     troubleshooting.md            # verification, rate limits, Turnstile, idempotency, validator errors
   tests/                          # mock-server.py + smoke.sh (CI only; excluded from the release zip)
 ```
-
-## Alternative: hosted MCP endpoint
-
-For clients that speak MCP natively (Claude Desktop, Cursor, Cline, ChatGPT App), point at the hosted Scribo MCP server instead of installing this skill:
-
-```json
-{
-  "mcpServers": {
-    "scribo": {
-      "transport": "http",
-      "url": "https://scribo.causaprima.ai/mcp"
-    }
-  }
-}
-```
-
-Both paths talk to the same `/api/v1/*` API.
 
 ## License
 
