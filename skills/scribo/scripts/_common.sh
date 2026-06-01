@@ -6,6 +6,12 @@ set -euo pipefail
 
 SCRIBO_BASE_URL="${SCRIBO_BASE_URL:-https://scribo.causaprima.ai}"
 SCRIBO_API_KEY="${SCRIBO_API_KEY:-}"
+# BCP-47 UI-language tag (e.g. de-DE). When set, sent as X-Scribo-Locale on
+# every request, so Scribo's outbound emails — the verification message (with
+# its confirmation page) and the "invoice ready" notification — render in this
+# language. Set it to the language of the conversation. Unsupported values
+# fall back to English on the server, so a wrong value fails safe.
+SCRIBO_LOCALE="${SCRIBO_LOCALE:-}"
 
 scribo_require() {
   local missing=()
@@ -112,6 +118,9 @@ scribo_request() {
   local -a headers=()
   if [ -n "$SCRIBO_API_KEY" ]; then
     headers+=(-H "Authorization: Bearer $SCRIBO_API_KEY")
+  fi
+  if [ -n "$SCRIBO_LOCALE" ]; then
+    headers+=(-H "X-Scribo-Locale: $SCRIBO_LOCALE")
   fi
   set +e
   # NB: "${headers[@]+...}" guard — under `set -u`, expanding an empty array as

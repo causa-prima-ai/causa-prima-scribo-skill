@@ -72,6 +72,14 @@ n="$(curl -s "$SCRIBO_BASE_URL/__debug/invoice-post-attempts" | jq -r .count)"
 [ "$n" = "0" ] || fail "tokenless create hit POST /api/v1/invoices ($n times); must verify before persist"
 ok "tokenless create did NOT POST /api/v1/invoices (verify-then-persist)"
 
+# 2c. SCRIBO_LOCALE round-trips as the X-Scribo-Locale header (controls the
+# verification-email + confirmation-page language). Run request_verification.sh
+# directly so we exercise the standalone send path, not just create's.
+out="$(SCRIBO_LOCALE=de-DE "$bash_bin" "$scripts/request_verification.sh" smoke@example.com 2>/tmp/smoke.err)"; rc=$?
+[ "$rc" -eq 0 ] || fail "request_verification with locale exit=$rc; stderr: $(cat /tmp/smoke.err)"
+[ "$(printf '%s' "$out" | jq -r .received_scribo_locale)" = "de-DE" ] || fail "X-Scribo-Locale did not round-trip"
+ok "SCRIBO_LOCALE -> X-Scribo-Locale header round-trips"
+
 # 3. create without contact_email -> exit 64
 out="$(printf '%s' '{"sender":{"legal_name":"X"},"recipient":{},"line_items":[],"currency":"EUR"}' | "$bash_bin" "$scripts/create_invoice.sh" 2>/tmp/smoke.err)"; rc=$?
 [ "$rc" -eq 64 ] || fail "create missing contact_email exit=$rc (want 64)"
