@@ -58,6 +58,8 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 
 Scribo proves the caller owns `sender.contact_email` **before** it generates anything (Scribo-03). You orchestrate it: call create, get told to verify, ask the user for the code, redeem, retry.
 
+> **Email language.** The verification email (and the confirmation page its link opens) is English by default. To send it in the language you're speaking with the user, set `SCRIBO_LOCALE` to the BCP-47 tag before calling `create_invoice.sh` / `request_verification.sh` — e.g. `export SCRIBO_LOCALE=de-DE`. This also localizes the later "invoice ready" notification email. Unsupported values fall back to English, so it's safe to set whenever the language is clear. UI-language only — it does **not** affect the invoice content, currency, or jurisdiction.
+
 **Canonical sequence:**
 
 1. Build the payload and call `scripts/create_invoice.sh`. With no token it does **not** create the invoice; it requests a challenge (Scribo emails a 6-digit code to the sender) and prints:
@@ -199,7 +201,7 @@ Pass the email `verification_token` via the `SCRIBO_VERIFICATION_TOKEN` env var 
 
 ### `scripts/request_verification.sh EMAIL` — POST `/api/v1/scribo/email-verifications`
 
-Requests an email-ownership challenge; Scribo emails a magic link **and** a 6-digit code to `EMAIL`. Returns `{ challenge_id, expires_at, next_request_allowed_at }`. You normally don't call this directly — `create_invoice.sh` requests the challenge for you when no token is present.
+Requests an email-ownership challenge; Scribo emails a magic link **and** a 6-digit code to `EMAIL`. Returns `{ challenge_id, expires_at, next_request_allowed_at }`. You normally don't call this directly — `create_invoice.sh` requests the challenge for you when no token is present. Set `SCRIBO_LOCALE` (e.g. `de-DE`) to control the email + confirmation-page language — see the **Verification** section.
 
 ### `scripts/redeem_verification.sh CHALLENGE_ID CODE` — POST `/api/v1/scribo/email-verifications/:id/redeem`
 

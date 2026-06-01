@@ -59,10 +59,14 @@ class Handler(BaseHTTPRequestHandler):
         body = self._drain()
         p = self.path
         if p == "/api/v1/scribo/email-verifications":
+            # Echo the locale header so the smoke test can prove SCRIBO_LOCALE
+            # reaches the API (the real server feeds it into resolveOutboundLocale
+            # to pick the verification-email + confirmation-page language).
             return self._json(202, {
                 "challenge_id": CHALLENGE_ID,
                 "expires_at": "2099-01-01T00:00:00Z",
                 "next_request_allowed_at": "2099-01-01T00:00:30Z",
+                "received_scribo_locale": self.headers.get("X-Scribo-Locale"),
             })
         if p.startswith("/api/v1/scribo/email-verifications/") and p.endswith("/redeem"):
             try:
