@@ -1,6 +1,6 @@
 # Scribo Skill for Claude, ChatGPT & Codex
 
-Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude.ai, Claude Code, Claude Desktop, Cowork, ChatGPT, or the OpenAI Codex CLI.
+Generate EN 16931-compliant e-invoices — XRechnung and ZUGFeRD today, with Factur-X, Peppol BIS UBL, and Spanish Facturae coming in Phase 2 — or a clean US plain PDF, from Claude.ai, Claude Code, Claude Desktop, Cowork, ChatGPT, or the OpenAI Codex CLI.
 
 This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` directly via small `curl` + `jq` helpers. No MCP server, no npm install, no signup ceremony — the sender's email is the login.
 
@@ -94,4 +94,4 @@ skills/scribo/
 
 ## License
 
-`UNLICENSED` — proprietary. © Causa Prima Germany GmbH. All rights reserved. Distributed for use against the public Scribo API; not open-source.
+Proprietary — © Causa Prima Germany GmbH. All rights reserved. See [LICENSE](./LICENSE).
