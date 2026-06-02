@@ -36,7 +36,69 @@ _🎥 Demo video coming soon._
 
 ## Getting started
 
-> 🚧 Being migrated — current install & setup details are in **[Previous README](#previous-readme)** below.
+### Quickstart
+
+If you use **Claude Code**, you're two commands away:
+
+```sh
+/plugin marketplace add causa-prima-ai/causa-prima-scribo-skill
+/plugin install scribo-skill@scribo-skill
+```
+
+Then just ask:
+
+> Draft an invoice from Example GmbH to Acme GmbH for 3 days of consulting at €1,200/day, 19% VAT.
+
+The skill triggers automatically, asks for anything it's missing, verifies your sender email once (a 6-digit code arrives by email), and returns a downloadable invoice.
+
+On Claude.ai, Claude Desktop, ChatGPT, or Codex CLI instead? Use the matching install method below.
+
+### Setup & prerequisites
+
+**Prerequisites.** Hosted assistants (Claude.ai, Claude Desktop, ChatGPT) need nothing installed. For local installs (Claude Code, Codex CLI) you'll need `bash` 4+, `curl`, and `jq` on your machine (`openssl` optional).
+
+Pick the method that matches how you run your assistant:
+
+| Method | Works with |
+|---|---|
+| **Plugin install** | Claude Code |
+| **`.zip` upload** | Claude.ai, Claude Desktop, ChatGPT |
+| **`git clone`** | OpenAI Codex CLI, manual Claude Code |
+
+**Plugin install — Claude Code**
+
+```sh
+/plugin marketplace add causa-prima-ai/causa-prima-scribo-skill
+/plugin install scribo-skill@scribo-skill
+```
+
+The skill activates as `/scribo-skill:scribo` and triggers automatically when you ask to draft an invoice.
+
+**`.zip` upload — Claude.ai, Claude Desktop, ChatGPT**
+
+1. Download `scribo-skill.zip` from the [latest release](https://github.com/causa-prima-ai/causa-prima-scribo-skill/releases/latest).
+2. Upload it:
+   - **Claude.ai / Claude Desktop** — Settings → Customize → Skills → **Upload skill**.
+   - **ChatGPT** — **New skill → Upload from your computer**.
+
+One upload covers new chats on that account.
+
+**`git clone` — Codex CLI, manual Claude Code**
+
+Clone once, then copy the inner `skills/scribo` folder into your assistant's skills directory:
+
+```sh
+git clone https://github.com/causa-prima-ai/causa-prima-scribo-skill /tmp/scribo-skill
+cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo     # Codex CLI
+# or  .claude/skills/scribo     (Claude Code — this project)
+# or  ~/.claude/skills/scribo   (Claude Code — all projects)
+```
+
+`SKILL.md` must end up at `…/scribo/SKILL.md`. Restart your assistant afterward.
+
+**Verify.** Ask your assistant: _"list the jurisdictions Scribo supports."_ You should get back a list of supported countries.
+
+Full install detail (Cowork, team installs, troubleshooting): [scribo.causaprima.ai/docs/skill](https://scribo.causaprima.ai/docs/skill).
 
 ## Usage
 
