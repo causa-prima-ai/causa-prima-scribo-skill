@@ -239,7 +239,7 @@ Scribo is built to be operated by an agent. It ships as an **MCP server**, a **C
 
 ## License
 
-Proprietary — `UNLICENSED`. © Causa Prima Germany GmbH. All rights reserved. Distributed for use against the public Scribo API; not open-source.
+Proprietary — `UNLICENSED`. © Causa Prima Germany GmbH. All rights reserved. Distributed for use against the public Scribo API; not open-source. See [LICENSE](./LICENSE).
 
 ---
 
