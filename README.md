@@ -1,3 +1,5 @@
+<img width="3840" height="1920" alt="A2 _ Claude Skill" src="https://github.com/user-attachments/assets/e3d5067e-b72f-41fe-bf2f-0c8584ac64f5" />
+
 # Scribo Skill for Claude, ChatGPT & Codex
 
 Generate EN 16931-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS UBL, Spanish Facturae) or a clean US plain PDF from Claude.ai, Claude Code, Claude Desktop, Cowork, ChatGPT, or the OpenAI Codex CLI.
