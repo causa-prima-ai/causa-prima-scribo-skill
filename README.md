@@ -122,7 +122,7 @@ This skill calls the public Scribo HTTP API at `https://scribo.causaprima.ai` di
 ### Claude Code (recommended)
 
 ```sh
-/plugin marketplace add causa-prima-ai/scribo-skill
+/plugin marketplace add causa-prima-ai/causa-prima-scribo-skill
 /plugin install scribo-skill@scribo-skill
 # or, when the name is unambiguous across your installed marketplaces:
 /plugin install scribo-skill
@@ -134,7 +134,7 @@ The skill activates as `/scribo-skill:scribo` and triggers automatically when yo
 
 Upload the packaged skill once per account; it then works in new chats / sessions across any repo.
 
-1. Download `scribo-skill.zip` from the [latest release](https://github.com/causa-prima-ai/scribo-skill/releases/latest).
+1. Download `scribo-skill.zip` from the [latest release](https://github.com/causa-prima-ai/causa-prima-scribo-skill/releases/latest).
 2. Add it in your assistant:
    - **Claude.ai / Claude Desktop / Cowork** — **Settings → Customize → Skills → Upload skill** (one upload covers all three on the account).
    - **ChatGPT** — **New skill → Upload from your computer** (see [Skills in ChatGPT](https://help.openai.com/en/articles/20001066-skills-in-chatgpt)); ChatGPT scans the upload before it goes live.
@@ -147,7 +147,7 @@ The release zip packages the skill as a single top-level `scribo/` directory (so
 Codex CLI reads skills from `~/.codex/skills/`, not from the Claude plugin registry. Clone once, then copy the **inner** `skills/scribo` directory to the destination for your surface — `SKILL.md` must land at `…/scribo/SKILL.md`, so never clone the repo root straight into a skills directory:
 
 ```sh
-git clone https://github.com/causa-prima-ai/scribo-skill /tmp/scribo-skill
+git clone https://github.com/causa-prima-ai/causa-prima-scribo-skill /tmp/scribo-skill
 cp -r /tmp/scribo-skill/skills/scribo ~/.codex/skills/scribo     # Codex CLI
 # or .claude/skills/scribo      (Claude Code project / Cowork repo-baked)
 # or ~/.claude/skills/scribo    (Claude Code user-global)
