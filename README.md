@@ -25,7 +25,14 @@ Just ask your AI agent about Scribo: it ships as an MCP server, a CLI, and a Cla
 
 ## What is the Scribo skill?
 
-> 🚧 Being migrated into Scribo's shared README structure — for now, see **[Previous README](#previous-readme)** at the bottom of this page.
+The Scribo skill teaches your AI assistant to create invoices for you. Add it once, then just ask — _"draft an invoice for 3 days of consulting at €1,200/day"_ — and your assistant gathers the details and hands back a finished, compliant invoice in the chat, ready to download and send. No new app to learn, no forms to fill in.
+
+It works wherever you already work: **Claude** (Claude.ai, Claude Code, Claude Desktop), **ChatGPT**, and the **OpenAI Codex CLI**. Free, no signup — your email is all you need.
+
+### Demo
+
+<!-- TODO: add demo video here -->
+_🎥 Demo video coming soon._
 
 ## Getting started
 
