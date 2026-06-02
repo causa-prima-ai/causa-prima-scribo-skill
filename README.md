@@ -94,4 +94,4 @@ skills/scribo/
 
 ## License
 
-`UNLICENSED` — proprietary. © Causa Prima Germany GmbH. All rights reserved. Distributed for use against the public Scribo API; not open-source.
+Proprietary — © Causa Prima Germany GmbH. All rights reserved. See [LICENSE](./LICENSE).
