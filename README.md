@@ -102,7 +102,45 @@ Full install detail (Cowork, team installs, troubleshooting): [scribo.causaprima
 
 ## Usage
 
-> 🚧 Being migrated — current usage details are in **[Previous README](#previous-readme)** below.
+### How it works
+
+You don't fill in a form — you describe the invoice and your assistant does the rest. When you ask for an invoice, it:
+
+1. **Gathers the details** in a short back-and-forth — who's billing (your business name, address, tax/VAT ID, and the email the invoice is sent from), who's being billed (their name, address, and billing email), and the line items, amounts, and currency.
+2. **Confirms the tax treatment** with you — standard-rated, reverse-charge, exempt, and so on. Scribo never guesses your VAT category; you decide.
+3. **Verifies your email once.** The first time you invoice from a new sender address, Scribo emails a 6-digit code that you paste back to confirm the address is yours. It's reused for ~30 minutes, so you're not asked again on every invoice.
+4. **Generates and validates** the invoice against EN 16931, then hands back a download link — a PDF with the matching e-invoice XML embedded — and emails you a copy.
+5. **Explains anything missing** in plain language — if a required detail is absent, it tells you what to add rather than failing silently.
+
+You stay in the conversation the whole time; there's no separate app or dashboard.
+
+### Examples
+
+Things you can say to your assistant once the skill is installed:
+
+**German B2B invoice (ZUGFeRD)**
+
+> Invoice Beispiel GmbH for 12 hours of web development at €110/hour, 19% VAT. I'm Example GmbH, VAT ID DE123456789.
+
+Returns a ZUGFeRD invoice — a PDF a human can read, with EN 16931 XML embedded for the recipient's accounting system.
+
+**German public-sector invoice (XRechnung)**
+
+> Same client, but it's for the City of Munich — the Leitweg-ID is 04011000-1234512345-06.
+
+A Leitweg-ID tells Scribo this is a B2G invoice, so it produces XRechnung, the format German public authorities require.
+
+**US invoice (plain PDF)**
+
+> Bill Acme Inc. $4,000 for a brand strategy workshop.
+
+A clean PDF invoice — no e-invoice XML, since the US has no e-invoicing mandate.
+
+**Re-download a past invoice**
+
+> Send me the download link for the invoice I made for Beispiel GmbH last week.
+
+Scribo returns a fresh download link for an invoice you've already generated.
 
 ## Compliance
 
