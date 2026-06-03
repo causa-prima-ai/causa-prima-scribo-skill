@@ -35,7 +35,7 @@ It works wherever you already work: **Claude** (Claude.ai, Claude Code, Claude D
 
 ### Demo
 
-https://github.com/user-attachments/assets/52ca9aa4-652d-4fe0-8168-cbe3f9507a65
+https://github.com/user-attachments/assets/f5a9f431-94bd-480e-a42a-657e1dcf4000
 
 ## Getting started
 
