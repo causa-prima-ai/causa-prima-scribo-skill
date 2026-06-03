@@ -24,7 +24,7 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 
 - Reading existing invoices / OCR / extracting data from a PDF — different tool.
 - Tax advice. Scribo does **not** infer the right tax category code; it asks the user to pick one (S/Z/E/AE/K/G/O per EN 16931). See `references/tax-codes.md` only if the user is unsure.
-- Sending the invoice to the recipient. The MVP returns a download URL only; the user delivers it themselves.
+- Submitting B2G invoices to portals (ZRE / OZG-RE / Peppol). Scribo emails the invoice to `recipient.contact_email` at issue time and returns a download URL, but portal/Peppol submission is manual — the user uploads the XML themselves.
 - Phase 1 supports DE and US senders only. Other sender countries return `unsupported_jurisdiction` — don't attempt to draft.
 
 ## Phase 1 limits — surface up front
