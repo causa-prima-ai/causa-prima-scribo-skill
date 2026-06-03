@@ -24,7 +24,7 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 
 - Reading existing invoices / OCR / extracting data from a PDF — different tool.
 - Tax advice. Scribo does **not** infer the right tax category code; it asks the user to pick one (S/Z/E/AE/K/G/O per EN 16931). See `references/tax-codes.md` only if the user is unsure.
-- Sending the invoice to the recipient. The MVP returns a download URL only; the user delivers it themselves.
+- Submitting B2G invoices to portals (ZRE / OZG-RE / Peppol). Scribo emails the invoice to `recipient.contact_email` at issue time and returns a download URL, but portal/Peppol submission is manual — the user uploads the XML themselves.
 - Phase 1 supports DE and US senders only. Other sender countries return `unsupported_jurisdiction` — don't attempt to draft.
 
 ## Phase 1 limits — surface up front
@@ -51,7 +51,7 @@ This skill talks to the public Scribo HTTP API at `https://scribo.causaprima.ai`
 3. **If the user is unsure of the tax category code**, read `references/tax-codes.md` once and offer the right pick. Never guess.
 4. **Build the JSON payload** and invoke `scripts/create_invoice.sh` (passes payload on stdin).
 5. **Verify email ownership the first time** — see the **Verification** section below. The first `create_invoice.sh` for a sender email prints `status: "verification_required"` with a `challenge_id` (exit 10); Scribo emails a 6-digit code to `sender.contact_email`. Ask the user for the code, redeem it for a `verification_token` with `scripts/redeem_verification.sh`, then re-run the create with the token. One token is good for ~30 minutes of invoices for the same sender.
-6. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and the fact that a magic link was emailed to the sender so they can come back later. For XRechnung output the legally binding file is the **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF. For XRechnung the response also carries a `preview_url` to the PDF visualisation (same content, human-readable) and a `submission` object describing how the user should deliver the XML (manual portal upload today). Surface both URLs and the submission hint to the user.
+6. **Hand the user the result** — `download_url` (durable; re-fetchable any time), the resolved `format`, and **what was emailed**: when `recipient_email_sent` is `true`, tell the user the invoice was emailed straight to `recipient.contact_email`; when it is `false`, warn them the recipient email could not be sent and they should deliver the download link or PDF themselves; when the field is absent (idempotent replay — no email is re-sent), say nothing about it. Also mention that a magic link was emailed to the sender so they can come back later. For XRechnung output the legally binding file is the **UBL XML** (or CII XML if you forced `xrechnung_cii`); for ZUGFeRD it's a **PDF/A-3** with `factur-x.xml` embedded; for US it's a plain PDF. For XRechnung the response also carries a `preview_url` to the PDF visualisation (same content, human-readable) and a `submission` object describing how the user should deliver the XML (manual portal upload today). Surface both URLs and the submission hint to the user.
 7. **On a 4xx/5xx response**, surface the `error.code` and `error.message` from the response envelope. Read `references/troubleshooting.md` if the error is one of: `email_verification_required`, `verification_email_mismatch`, `verification_invalid`, `rate_limited`, `turnstile_required`, `idempotency_key_mismatch`, `validator_failed`. Common gotchas: missing `tax_exemption_code` for an E line, missing `payment_means` on an XRechnung path, reserved `country_code`, `tax_rate > 100`.
 
 ## Verification (required before the first invoice)
@@ -193,7 +193,7 @@ JSON
 }
 ```
 
-Returns `{ invoice_id, document_id, format, download_url, download_url_expires_at, validator_summary, magic_link_sent }`. The download URL is durable — re-fetchable any time from any device. The magic link arrives at the sender's email and lets them sign back in.
+Returns `{ invoice_id, document_id, format, download_url, download_url_expires_at, validator_summary, magic_link_sent, recipient_email_sent }`. The download URL is durable — re-fetchable any time from any device. The magic link arrives at the sender's email and lets them sign back in. `recipient_email_sent` reports the recipient-facing email: `true` = the invoice was emailed to `recipient.contact_email`, `false` = the best-effort send failed (tell the user to deliver the PDF themselves), absent = idempotent replay of an older response (no email re-sent — claim nothing).
 
 Format is picked from the priority chain (`format_override` → Leitweg-ID → `jurisdiction` → sender country → sender tax-ID prefix → recipient country → recipient tax-ID prefix). See `references/jurisdictions.md` for the full table.
 
